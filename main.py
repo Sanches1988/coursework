@@ -1,14 +1,12 @@
 import requests
-import os
 import datetime as dt
 import json
+import time
+from tqdm import tqdm
 
-
-def get_token_id(file_name):
-    with open(os.path.join(os.getcwd(), file_name), 'r') as file:
-        token = file.readline().strip()
-        id = file.readline().strip()
-    return [token, id]
+token_vk = ""
+token_ya = ""
+test_vk_id = 170907239
 
 
 def time_convert(time):
@@ -29,9 +27,9 @@ def find_max_size(dict_search):
 
 
 class VK_request:
-    def __init__(self, token_list, version='5.131'):
-        self.token = token_list[0]
-        self.id = token_list[1]
+    def __init__(self, version='5.131'):
+        self.token = token_vk
+        self.id = test_vk_id
         self.version = version
         self.start_params = {'access_token': self.token, 'v': self.version}
         self.json, self.export_dict = self.sort_info()
@@ -78,8 +76,8 @@ class VK_request:
 
 
 class Yandex:
-    def __init__(self, directory_name, token_list):
-        self.token = token_list[0]
+    def __init__(self, directory_name):
+        self.token = token_ya
         self.url = "https://cloud-api.yandex.net/v1/disk/resources/upload"
         self.headers = {'Authorization': self.token}
         self.folder = self.create_directory(directory_name)
@@ -87,13 +85,10 @@ class Yandex:
     def create_directory(self, directory_name):
         url = "https://cloud-api.yandex.net/v1/disk/resources"
         params = {'path': directory_name}
-        if requests.get(url=url,
-                        headers=self.headers,
-                        params=params).status_code != 200:
-            requests.put(url=url, headers=self.headers, params=params)
-            print(f'Папка {directory_name} успешно создана в Я.Диске')
-        else:
-            print(f'Папка с именем {directory_name} уже существует.')
+        сreate_dir = requests.get(url=url, 
+                                  headers=self.headers, 
+                                  params=params).status_code != 200
+        requests.put(url=url, headers=self.headers, params=params)
         return directory_name
 
     def in_directory(self, directory_name):
@@ -110,25 +105,18 @@ class Yandex:
     def create_copy(self, dict_files):
         files_in_folder = self.in_directory(self.folder)
         added_files_num = 0
-        for k in dict_files.keys():
+        for k in tqdm(dict_files.keys()):
+            time.sleep(1)
             if k not in files_in_folder:
                 params = {'path': f'{self.folder}/{k}',
                           'url': dict_files[k],
                           'overwrite': 'false'}
                 requests.post(self.url, headers=self.headers, params=params)
-                print(f'Файл {k} добавлен')
                 added_files_num += 1
-            else:
-                print(f'Такой файл {k} уже существует')
-        print(f'Было добавлено {added_files_num} новых файлов')
 
 
-token_id_VK = 'VKtoken.txt'
-tokenYa = 'Yatoken.txt'
-
-
-my_vk = VK_request(get_token_id(token_id_VK))
-my_yandex = Yandex('ВК фото', get_token_id(tokenYa))
+my_vk = VK_request()
+my_yandex = Yandex('ВК фото')
 my_yandex.create_copy(my_vk.export_dict)
 
 
